@@ -43,21 +43,27 @@ def main():
         caver = CodeCaver(parser)
         injector = ShellcodeInjector(parser, caver)
 
+
+        # call_func_to_overwrite = parser.find_first_instruction("call", ".text", parser.pe.OPTIONAL_HEADER.AddressOfEntryPoint)
+        # print(call_func_to_overwrite)
+        # call_rva = parser.extract_offset_and_calculate_target(call_func_to_overwrite['bytes'], call_func_to_overwrite['address'])
+        # print(f"CALL RVA: {hex(call_rva)}")
+
         # Print basic PE information
         print_header("PE File Analysis")
         architecture = parser.check_pe_architecture()
         print(f"Architecture: {architecture}")
-
+    
         # Security features check
         print_section("Security Features", parser.check_security_features())
-
+    
         # Basic headers
         print_section("File Headers", parser.get_file_headers())
-
+    
         # Find code caves
         print_header("Code Cave Analysis")
         caves = caver.find_code_caves(min_size=100)
-        
+    
         # Filter and print only sections with caves
         cave_results = {
             section: [f"Offset: {hex(offset)}, Size: {size}"
@@ -66,7 +72,7 @@ def main():
             if caves_list
         }
         print_section("Code Caves Found", cave_results)
-
+    
         # Attempt shellcode injection
         print_header("Shellcode Injection")
         try:

@@ -160,3 +160,35 @@ class PEParser:
         except Exception as e:
             print(f"[-] Failed to disassemble at address 0x{address:08x}: {str(e)}")
             return []
+
+    def extract_offset_and_calculate_target(self, instruction_bytes, instruction_address):
+        """
+        Extract the offset from a CALL or JMP instruction and calculate the target address.
+
+        Parameters:
+        - instruction_bytes (bytes): The bytes of the instruction (e.g., b'\xE8\xF7\x04\x00\x00').
+        - instruction_address (int): The address of the instruction in memory.
+
+        Returns:
+        - int: The target address the CALL or JMP instruction will jump to.
+        """
+        # Ensure the instruction is at least 5 bytes (1-byte opcode + 4-byte offset)
+        if len(instruction_bytes) < 5:
+            raise ValueError("Instruction must be at least 5 bytes long.")
+
+        # Extract the opcode (first byte) and check if it's a CALL (0xE8) or JMP (0xE9) instruction
+        opcode = instruction_bytes[0]
+        if opcode not in [0xE8, 0xE9]:
+            raise ValueError("Instruction is not a CALL or JMP.")
+
+        # Extract the 4-byte offset from the instruction (following the opcode)
+        offset_bytes = instruction_bytes[1:5]
+        offset = int.from_bytes(offset_bytes, byteorder='little', signed=True)
+
+        # Calculate the target address
+        instruction_length = 5  # CALL/JMP instruction is 5 bytes long
+        target_address = instruction_address + instruction_length + offset
+
+        return target_address
+
+

